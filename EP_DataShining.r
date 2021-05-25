@@ -1,4 +1,4 @@
-data.ep.raw<-as.data.table(read.csv(file="InnerTuning_20210522.csv"))
+data.ep.raw<-as.data.table(read.csv(file="InnerTuning_20210524.csv"))
 
 #不能直接label，因为每次重新执行labView时会重置，因此可能重复
 data.ep.raw$timeLabel<-format(data.ep.raw$Time,format="%Y-%m-%d %H:%M:%S")
@@ -20,7 +20,7 @@ data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=La
 ####根据时间分配TestId####
 data.ep.roomResponse.second$testId<-"prepare"
 
-info.ep.testId<-read.xlsx(file="Info_0522_TestId.xlsx",sheetIndex=1)%>%as.data.table(.)
+info.ep.testId<-read.xlsx(file="Info_TestId.xlsx",sheetName = "0525")%>%as.data.table(.)
 apply(info.ep.testId[,c("start","end","testId")], MARGIN = 1, function(x){
   data.ep.roomResponse.second[Time %within% interval(start=as.POSIXct(x[1]),end=as.POSIXct(x[2]))]$testId<<-as.character(x[3])
   })
@@ -29,9 +29,9 @@ data.ep.roomResponse.second<-merge(x=data.ep.roomResponse.second,
 
 
 
-data.ep.roomResponse.second[testId=="K2_3"]%>%ggplot(data=.,aes(x=Label,y=InWindT))+geom_line()
+data.ep.roomResponse.second[testId=="K2_2"]%>%ggplot(data=.,aes(x=Time,y=InWindT))+geom_line()
 
-data.ep.roomResponse.second[Kp==4&!is.na(Kp),
+data.ep.roomResponse.second[!is.na(Kp),
                             c("Label","testId","Time","Valveopening","Vset","Flowrate","OutWindT","InWindT","t_out_set","Kp","Ti")]%>%
   mutate(.,para=paste("Kp"=Kp,"Ti"=Ti,sep=","))%>%
   melt(.,id.var=c("Label","testId","Time","Ti","para"))%>%
