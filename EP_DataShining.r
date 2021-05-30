@@ -1,7 +1,25 @@
-data.ep.raw<-as.data.table(read.csv(file="OriginalData/InnerTuning_20210522.csv"))
+data.ep.raw<-as.data.table(read.csv(file="OriginalData/Tuning_20210526.csv"))
 
 #不能直接label，因为每次重新执行labView时会重置，因此可能重复
 data.ep.raw$timeLabel<-format(data.ep.raw$Time,format="%Y-%m-%d %H:%M:%S")
+# data.ep.raw$Time<-as.POSIXct(data.ep.raw$Time)
+
+#看一下分布，去除原始数据的异常值
+ggplot(data.ep.raw,aes(x=Fre))+geom_density()
+ggplot(data.ep.raw,aes(x=1,y=Totalpressure))+geom_boxplot()
+
+data.ep.raw<-data.ep.raw%>%{
+    .[Totalpressure>200]$Totalpressure<-NA #
+    .[Subpressure>200]$Subpressure<-NA #
+    .[Flowrate>10]$Flowrate<-NA #
+    .[InWaterT<10|InWaterT>80]$InWaterT<-NA # #切记|会都比较两个判断，但||只会比较一个，满足即返回
+    .[OutWaterT<10|OutWaterT>80]$OutWaterT<-NA #
+    .[InWindT<10]$InWindT<-NA
+    .[OutWindT<10]$OutWindT<-NA
+    .[Fre>100]$Fre<-NA #
+    .
+}
+
 
 ####整合至秒级####
 #可能有问题的: Power和Powerset
@@ -16,11 +34,10 @@ data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=La
                 mutate(.,Time=as.POSIXct(.$Time))%>%as.data.table()
 
 
-
 ####根据时间分配TestId####
 data.ep.roomResponse.second$testId<-"prepare"
 
-info.ep.testId<-read.xlsx(file="Info_TestId.xlsx",sheetName = "0522")%>%as.data.table(.)
+info.ep.testId<-read.xlsx(file="Info_TestId.xlsx",sheetName = "0528")%>%as.data.table(.)
 
 
 apply(info.ep.testId[,c("start","end","testId")], MARGIN = 1, function(x){
@@ -28,21 +45,27 @@ apply(info.ep.testId[,c("start","end","testId")], MARGIN = 1, function(x){
   })
 data.ep.roomResponse.second<-merge(x=data.ep.roomResponse.second,
                                    y=info.ep.testId[,c("testId","Kp","Ti")],all.x = TRUE,by = "testId")
+####根据TestId分配正序的label####
+#原来的程序label不一样，测出来label对应一个是1s一个是2s
+data.ep.roomResponse.second$timeCount<- -999
+for(i in unique(data.ep.roomResponse.second[testId!="prepare"]$testId)){
+  data.ep.roomResponse.second[testId==i]$timeCount<-0:(nrow(data.ep.roomResponse.second[testId==i])-1)
+}
 
+####可视化####
+data.ep.roomResponse.second[!is.na(Kp)&Kp!=0&Label<1000&testId!="Casc_Low"]%>%
+  ggplot(data=.,aes(x=Label,y=t_out_set,color=testId,lty=testId))+geom_line()+geom_line(aes(x=Label,y=OutWindT))+facet_wrap(~testId,nrow = 3)
 
-
-data.ep.roomResponse.second[testId=="OrgCascWithSetpoint"]%>%ggplot(data=.,aes(x=Time,y=InWindT))+geom_line()
-
-data.ep.roomResponse.second[!is.na(Kp)&Kp!=0,
-                            c("Label","testId","Time","Valveopening","Vset","Flowrate","OutWindT","InWindT","t_out_set","t_return_set","Kp","Ti")]%>%
-  mutate(.,para=paste("Kp"=Kp,"Ti"=Ti,sep=","))%>%
-  melt(.,id.var=c("Label","testId","Time","Ti","para"))%>%
+data.ep.roomResponse.second[testId!="prepare",#&!is.na(Kp)&Kp!=0,
+                            c("timeCount","testId","Time","Valveopening","Vset","Flowrate","OutWindT","InWindT","t_out_set","t_return_set")]%>%#,"Kp","Ti"
+  #mutate(.,para=paste("Kp"=Kp,"Ti"=Ti,sep=","))%>%
+  melt(.,id.var=c("timeCount","testId","Time"))%>%#,"Ti","para"
   as.data.table(.)%>%{
-    ggplot(data=.[variable %in% c("Valveopening","Vset")],aes(x=Label,y=value,color=variable,lty=variable,width=4,group=variable))+
+    ggplot(data=.[variable %in% c("Valveopening","Vset","InWindT","t_out_set")],aes(x=timeCount,y=value,color=variable,lty=variable,width=4,group=variable))+
       geom_line()+
-      geom_line(data=.[variable %in% c("OutWindT","InWindT","t_out_set","t_return_set")],aes(x=Label,y=value))+#(value-20)/0.4))+
-      #scale_y_continuous(sec.axis = sec_axis(~.*0.4+20,name = "Temperature"))+
-      facet_wrap(~para+testId,nrow = 2)+
+      geom_line(data=.[variable %in% c("OutWindT","t_return_set")],aes(x=timeCount,y=(value-20)*5))+#)+value#"OutWindT",
+      scale_y_continuous(sec.axis = sec_axis(~./5+20,name = "Temperature"))+
+      facet_wrap(~testId,nrow = 3)+
       theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),#legend.position = c(0.85,0.2),
                        legend.text = element_text(size=16))#
     }
