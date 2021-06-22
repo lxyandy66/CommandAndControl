@@ -1,4 +1,4 @@
-data.ep.raw<-as.data.table(read.csv(file="OriginalData/Tuning_20210526.csv"))
+data.ep.raw<-as.data.table(read.csv(file="OriginalData/AhuOutletTuning_20210602.csv"))
 
 #不能直接label，因为每次重新执行labView时会重置，因此可能重复
 data.ep.raw$timeLabel<-format(data.ep.raw$Time,format="%Y-%m-%d %H:%M:%S")
@@ -29,7 +29,7 @@ data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=La
                       data.ep.raw[,lapply(.SD,mean,na.rm=TRUE),
                                    .SDcols=c("Flowrate","Totalpressure","Subpressure","InWaterT","OutWaterT",
                                                    "InWindT","OutWindT","Valveopening","Vset","Fset","Tset",       
-                                             "t_out_set","t_return_set",
+                                             "t_out_set","t_return_set","flow_set",
                                              "Powerset","Fre","HeatingRate"),by=timeLabel][,-"timeLabel"])%>%
                 mutate(.,Time=as.POSIXct(.$Time))%>%as.data.table()
 
@@ -37,7 +37,7 @@ data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=La
 ####根据时间分配TestId####
 data.ep.roomResponse.second$testId<-"prepare"
 
-info.ep.testId<-read.xlsx(file="Info_TestId.xlsx",sheetName = "0528")%>%as.data.table(.)
+info.ep.testId<-read.xlsx(file="Info_TestId.xlsx",sheetName = "0602")%>%as.data.table(.)
 
 
 apply(info.ep.testId[,c("start","end","testId")], MARGIN = 1, function(x){
@@ -53,22 +53,44 @@ for(i in unique(data.ep.roomResponse.second[testId!="prepare"]$testId)){
 }
 
 ####可视化####
-data.ep.roomResponse.second[!is.na(Kp)&Kp!=0&Label<1000&testId!="Casc_Low"]%>%
-  ggplot(data=.,aes(x=Label,y=t_out_set,color=testId,lty=testId))+geom_line()+geom_line(aes(x=Label,y=OutWindT))+facet_wrap(~testId,nrow = 3)
+data.ep.roomResponse.second[testId=="Klow_1.1"]%>%
+  ggplot(data=.,aes(x=Label,y=t_out_set,color=testId,lty=testId))+geom_line()+geom_line(aes(x=Label,y=InWindT))+geom_line(aes(x=Label,y=Flowrate*50))+facet_wrap(~testId,nrow = 3)
 
-data.ep.roomResponse.second[testId!="prepare",#&!is.na(Kp)&Kp!=0,
-                            c("timeCount","testId","Time","Valveopening","Vset","Flowrate","OutWindT","InWindT","t_out_set","t_return_set")]%>%#,"Kp","Ti"
-  #mutate(.,para=paste("Kp"=Kp,"Ti"=Ti,sep=","))%>%
-  melt(.,id.var=c("timeCount","testId","Time"))%>%#,"Ti","para"
-  as.data.table(.)%>%{
-    ggplot(data=.[variable %in% c("Valveopening","Vset","InWindT","t_out_set")],aes(x=timeCount,y=value,color=variable,lty=variable,width=4,group=variable))+
+temp.ep.pre[testId%in%c("V2F_7")&timeCount<600,#"prepare", #&!is.na(Kp)&Kp!=0,,"V2O_1","V2O_2","V2O_3",!testId%in%c("prepare","Casc_Low_1","Casc_Low_2")
+                            c("timeCount","testId","Time","Valveopening","Vset","Flowrate","OutWindT","InWindT","t_out_set","t_return_set","Kp","Ti","flow_set")]%>%#,
+  mutate(.,para=paste("Kp"=as.character(.$Kp),"Ti"=as.character(.$Ti),sep=","))%>%.[,!names(.)%in%c("Kp","Ti")]%>%
+  melt(.,id.var=c("timeCount","testId","Time","para"))%>%#,"Ti","para"
+  as.data.table(.)%>%{ #,"InWindT","t_out_set"
+    ggplot(data=.[variable %in% c("Valveopening","Vset")],aes(x=timeCount,y=value,color=variable,lty=variable,width=4,group=variable))+
       geom_line()+
-      geom_line(data=.[variable %in% c("OutWindT","t_return_set")],aes(x=timeCount,y=(value-20)*5))+#)+value#"OutWindT",
-      scale_y_continuous(sec.axis = sec_axis(~./5+20,name = "Temperature"))+
+      geom_line(data=.[variable %in% c("flow_set","Flowrate")],aes(x=timeCount,y=value*100))+#)+value#"OutWindT",(value-20)*5)
+      geom_line(data=.[variable %in% c("InWindT","t_out_set")],aes(x=timeCount,y=value))+
+      scale_y_continuous(sec.axis = sec_axis(~./100,name = "Flow rate"))+#./5+20
       facet_wrap(~testId,nrow = 3)+
       theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),#legend.position = c(0.85,0.2),
                        legend.text = element_text(size=16))#
-    }
+  }
+
+
+####统计一下各case的情况####
+nn<-temp.ep.pre[timeCount<600&testId=="V2F_4"][timeCount %in% c((max(timeCount)-100):max(timeCount))]
+mean(temp.ep.pre[timeCount<600&testId=="V2F_4"][timeCount%in% c(max(timeCount)-100:max(timeCount))]$InWindT,na.rm=TRUE)
+
+stat.ep.testId<-temp.ep.pre[timeCount<600,.(
+  duration=max(timeLabel,na.rm = TRUE),
+  peakime=timeCount[InWindT==max(InWindT,na.rm = TRUE)][1],
+  startTout=mean(InWindT[timeCount%in%1:10],na.rm=TRUE),#开始时刻的送风温度
+  startTroom=mean(OutWindT[timeCount%in%1:10],na.rm=TRUE),#开始时刻的室内温度
+  startFlowrate=mean(Flowrate[timeCount%in%1:10],na.rm=TRUE),#开始时刻的流量
+  meanValveBias=mean(abs(Valveopening-Vset),na.rm=TRUE),
+  meanLastTout=mean(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE),#最后100s的波动情况#(length(timeCount)-60:length(timeCount))
+  sdLastTout=sd(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE),#最后100s的波动情况
+  maxTout=max(InWindT,na.rm = TRUE),
+  overshoot=(max(InWindT,na.rm = TRUE)/mean(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE))-1
+),by=testId]%>%
+  merge(x=.,y=info.ep.testId[,c("testId","Kp","Ti")],all.x = TRUE,by = "testId")
+
+
   
 ##查看最后2min变化
 data.ep.roomResponse.second[testId=="OrgCascWithSetpoint"]%>%
@@ -85,7 +107,7 @@ write.xlsx(data.ep.roomResponse.second,file="SecVer_RoomResponse_20210507.xlsx")
 data.ep.valveFlow<-as.data.table(read.csv(file="OriginalData/SecVer_ResponseOnOffTest_20210506.csv"))%>%
   mutate(.,TestId=as.factor(.$TestId),isOn=(.$from<.$to))%>%as.data.table(.)%>%.[complete.cases(.)]
 
-ggplot(data=data.ep.valveFlow[!TestId%in%c("T4","RTR_1")],aes(x=Valveopening,y=Flowrate,color=isOn,lty=TestId))+geom_line()+facet_wrap(~TestId,nrow = 2)+
+ggplot(data=data.ep.valveFlow[TestId%in%c("2","3","4","5","6","RTR_2","T2")|(TestId=="T1"&isOn==TRUE)],aes(x=Valveopening,y=Flowrate,color=isOn,lty=TestId))+geom_line()+facet_wrap(~TestId,nrow = 2)+
   theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),legend.text = element_text(size=16))
 
 
