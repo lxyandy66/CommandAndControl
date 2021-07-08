@@ -1,12 +1,13 @@
-data.ep.raw<-as.data.table(read.csv(file="OriginalData/AhuOutletTuning_20210602.csv"))
+data.ep.raw<-as.data.table(read.csv(file="OriginalData/ModiTestId_StepResponseForRecognition_20210625.csv"))
 
 #不能直接label，因为每次重新执行labView时会重置，因此可能重复
+data.ep.raw$Time<-as.POSIXct(data.ep.raw$Time)
 data.ep.raw$timeLabel<-format(data.ep.raw$Time,format="%Y-%m-%d %H:%M:%S")
-# data.ep.raw$Time<-as.POSIXct(data.ep.raw$Time)
+
 
 #看一下分布，去除原始数据的异常值
-ggplot(data.ep.raw,aes(x=Fre))+geom_density()
-ggplot(data.ep.raw,aes(x=1,y=Totalpressure))+geom_boxplot()
+ggplot(data.ep.raw,aes(x=Flowrate))+geom_density()
+ggplot(data.ep.raw,aes(x=1,y=Flowrate))+geom_boxplot()
 
 data.ep.raw<-data.ep.raw%>%{
     .[Totalpressure>200]$Totalpressure<-NA #
@@ -25,32 +26,58 @@ data.ep.raw<-data.ep.raw%>%{
 #可能有问题的: Power和Powerset
 # 目前直接取平均值
 setorder(data.ep.raw,Time)
-data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=Label[1]),by=timeLabel],
+#注意！getMode有相同出现次数时可能返回多个数值
+data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=Label[1],
+                                                  testId=getMode(testId,na.rm = TRUE)[1],
+                                                  Vset=getMode(Vset,na.rm = TRUE)[1],
+                                                  testVset=getMode(testVset,na.rm = TRUE)[1],#阀门测试用
+                                                  isOn=getMode(isOn,na.rm = TRUE)[1],#阀门测试用
+                                                  testType=getMode(testType,na.rm = TRUE)[1],#阀门测试用
+                                                  onRoutine=getMode(onRoutine,na.rm = TRUE)[1]#阀门测试用
+                                                  #注意采样时间问题，是用众数还是平均数，对于手动众数没问题，考虑串级自动的时候
+                                                  ),by=timeLabel],
                       data.ep.raw[,lapply(.SD,mean,na.rm=TRUE),
                                    .SDcols=c("Flowrate","Totalpressure","Subpressure","InWaterT","OutWaterT",
-                                                   "InWindT","OutWindT","Valveopening","Vset","Fset","Tset",       
+                                                   "InWindT","OutWindT","Valveopening","Fset","Tset",  #"Vset"  ,   
                                              "t_out_set","t_return_set","flow_set",
                                              "Powerset","Fre","HeatingRate"),by=timeLabel][,-"timeLabel"])%>%
                 mutate(.,Time=as.POSIXct(.$Time))%>%as.data.table()
+View(table(data.ep.roomResponse.second$Vset))
+
+data.ep.roomResponse.second$isOn<-data.ep.roomResponse.second$Valveopening<data.ep.roomResponse.second$Vset
 
 
 ####根据时间分配TestId####
 data.ep.roomResponse.second$testId<-"prepare"
-
 info.ep.testId<-read.xlsx(file="Info_TestId.xlsx",sheetName = "0602")%>%as.data.table(.)
-
-
 apply(info.ep.testId[,c("start","end","testId")], MARGIN = 1, function(x){
   data.ep.roomResponse.second[Time %within% interval(start=as.POSIXct(x[1]),end=as.POSIXct(x[2]))]$testId<<-as.character(x[3])
   })
 data.ep.roomResponse.second<-merge(x=data.ep.roomResponse.second,
                                    y=info.ep.testId[,c("testId","Kp","Ti")],all.x = TRUE,by = "testId")
+
+
 ####根据TestId分配正序的label####
 #原来的程序label不一样，测出来label对应一个是1s一个是2s
 data.ep.roomResponse.second$timeCount<- -999
 for(i in unique(data.ep.roomResponse.second[testId!="prepare"]$testId)){
   data.ep.roomResponse.second[testId==i]$timeCount<-0:(nrow(data.ep.roomResponse.second[testId==i])-1)
 }
+
+
+####阀门-流量处理####
+#Grad流量取均值
+data.ep.valveFlow<-data.ep.roomResponse.second[testType=="Grad",
+                                               .(testId=testId[1],
+                                                 Vset=Vset[1],
+                                                 onRoutine=onRoutine[1],
+                                                 Flowrate=mean(Flowrate,na.rm=TRUE),
+                                                 Valveopening=mean(Valveopening,na.rm=TRUE)
+                                                 ),by=(testIdVsetDir=paste(testId,Vset,onRoutine,sep = "_"))]
+#平均后迟滞环评估
+ggplot(data.ep.valveFlow,aes(x=Vset,y=Flowrate,color=testId,shape=onRoutine))+geom_point()+geom_line()
+stat.ep.valveFlow<-data.ep.valveFlow[,.(maxHR=(Flowrate[onRoutine==TRUE]-Flowrate[onRoutine==FALSE]),
+                                        ),by=(testIdVset=paste(testId,Vset,sep = "_"))]
 
 ####可视化####
 data.ep.roomResponse.second[testId=="Klow_1.1"]%>%
@@ -70,6 +97,33 @@ temp.ep.pre[testId%in%c("V2F_7")&timeCount<600,#"prepare", #&!is.na(Kp)&Kp!=0,,"
       theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),#legend.position = c(0.85,0.2),
                        legend.text = element_text(size=16))#
   }
+
+#流量可视化
+#阶跃迟滞环
+data.ep.roomResponse.second[!is.na(testId)&testId=="MV=0.5_BV=0_F=33_Step"&testVset<40,
+                            c("timeCount","Time","testId","Valveopening","testVset","Flowrate","Totalpressure","Subpressure")]%>%#,"isOn"
+  #melt(.,id.var=c("timeCount","testId","Time","Vset"))%>%
+  ggplot(data = .,aes(x=Valveopening,y=Flowrate,color=as.factor(testVset)))+
+  geom_point(alpha=0.6)+
+  geom_path(aes(mapping = timeCount))+
+  facet_wrap(~as.factor(testVset),nrow = 2)#Valveopening
+
+#不同工况迟滞环
+data.ep.roomResponse.second[!is.na(testId)&testType=="Step"&testVset==60,
+                            c("timeCount","Time","testId","Valveopening","testVset","Flowrate","Totalpressure","Subpressure")]%>%#,"isOn"
+  #melt(.,id.var=c("timeCount","testId","Time","Vset"))%>%
+  ggplot(data = .,aes(x=Valveopening,y=Flowrate,color=as.factor(testId)))+
+  geom_point(alpha=0.6)+
+  geom_path(aes(mapping = timeCount))#+
+  facet_wrap(~as.factor(testVset),nrow = 2)#Valveopening
+
+#低流量粘滞
+data.ep.roomResponse.second[!is.na(testId)&testId=="MV=0.5_BV=0_F=33_Step"&Vset.1<12,
+                            c("timeCount","Time","testId","Valveopening","Vset.1","Flowrate","Totalpressure","Subpressure")]%>%#,"isOn"
+  ggplot(data = .,aes(x=timeCount,y=Flowrate,color=as.factor(Vset.1)))+
+  geom_point(alpha=0.6)+
+  geom_path()+
+  facet_wrap(~as.factor(Vset.1),nrow = 3)
 
 
 ####统计一下各case的情况####
