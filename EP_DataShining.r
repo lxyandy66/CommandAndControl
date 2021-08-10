@@ -33,7 +33,7 @@ data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=La
                                                   testVset=getMode(testVset,na.rm = TRUE)[1],#阀门测试用
                                                   isOn=getMode(isOn,na.rm = TRUE)[1],#阀门测试用
                                                   testType=getMode(testType,na.rm = TRUE)[1],#阀门测试用
-                                                  onRoutine=getMode(onRoutine,na.rm = TRUE)[1]#阀门测试用
+                                                  onRoutine=getMode(onRoutine,na.rm = TRUE)[1]#阀门测试用，onRoutine对于Grad测试而言，上升阶段为TRUE，反之为FALSE
                                                   #注意采样时间问题，是用众数还是平均数，对于手动众数没问题，考虑串级自动的时候
                                                   ),by=timeLabel],
                       data.ep.raw[,lapply(.SD,mean,na.rm=TRUE),
@@ -44,7 +44,6 @@ data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=La
                 mutate(.,Time=as.POSIXct(.$Time))%>%as.data.table()
 View(table(data.ep.roomResponse.second$Vset))
 
-data.ep.roomResponse.second$isOn<-data.ep.roomResponse.second$Valveopening<data.ep.roomResponse.second$Vset
 
 
 ####根据时间分配TestId####
@@ -65,67 +64,185 @@ for(i in unique(data.ep.roomResponse.second[testId!="prepare"]$testId)){
 }
 
 
+####通过阀门流量处理####
+
+#计算水头
+data.ep.roomResponse.second<-data.ep.roomResponse.second%>%
+                                mutate(.,totalWaterH=.$Totalpressure/9807,subWaterH=.$Subpressure/9807)%>%
+                                as.data.table(.)
+#计算支路流阻系数
+data.ep.roomResponse.second$resistanceS<-data.ep.roomResponse.second$subWaterH/(data.ep.roomResponse.second$Flowrate*data.ep.roomResponse.second$Flowrate)
+data.ep.roomResponse.second[is.infinite(resistanceS)]$resistanceS<-NA
+
 ####阀门-流量处理####
+#上行下行处理
+data.ep.roomResponse.second$isOn<-as.character(data.ep.roomResponse.second$isOn)
+data.ep.roomResponse.second[isOn=="TRUE"&Valveopening<Vset]$isOn<-"Ascending"
+data.ep.roomResponse.second[isOn=="TRUE"&Valveopening>Vset]$isOn<-"Descending"
+
 #Grad流量取均值
 data.ep.valveFlow<-data.ep.roomResponse.second[testType=="Grad",
                                                .(testId=testId[1],
                                                  Vset=Vset[1],
                                                  onRoutine=onRoutine[1],
+                                                 resistanceS=mean(resistanceS,na.rm=TRUE),
                                                  Flowrate=mean(Flowrate,na.rm=TRUE),
-                                                 Valveopening=mean(Valveopening,na.rm=TRUE)
+                                                 Valveopening=mean(Valveopening,na.rm=TRUE),
+                                                 Subpressure=mean(Subpressure,na.rm=TRUE),
+                                                 Totalpressure=mean(Totalpressure,na.rm=TRUE)
                                                  ),by=(testIdVsetDir=paste(testId,Vset,onRoutine,sep = "_"))]
 #平均后迟滞环评估
-ggplot(data.ep.valveFlow,aes(x=Vset,y=Flowrate,color=testId,shape=onRoutine))+geom_point()+geom_line()
-stat.ep.valveFlow<-data.ep.valveFlow[,.(maxHR=(Flowrate[onRoutine==TRUE]-Flowrate[onRoutine==FALSE]),
+#选用Grad测试相当于取平均，实际上Step也可以做到，只是处理起来比较麻烦
+####此处可用于流量方程中H的确定####
+ggplot(data.ep.valveFlow,aes(x=Flowrate,y=Totalpressure,color=testId,shape=onRoutine))+geom_point()+geom_line()
+stat.ep.valveFlow<-data.ep.valveFlow[,.(maxHR=(Flowrate[onRoutine==TRUE]-Flowrate[onRoutine==FALSE])
                                         ),by=(testIdVset=paste(testId,Vset,sep = "_"))]
 
 ####可视化####
 data.ep.roomResponse.second[testId=="Klow_1.1"]%>%
-  ggplot(data=.,aes(x=Label,y=t_out_set,color=testId,lty=testId))+geom_line()+geom_line(aes(x=Label,y=InWindT))+geom_line(aes(x=Label,y=Flowrate*50))+facet_wrap(~testId,nrow = 3)
+  ggplot(data=.,aes(x=Label,y=t_out_set,color=testId,lty=testId))+
+  geom_line()+geom_line(aes(x=Label,y=InWindT))+geom_line(aes(x=Label,y=Flowrate*50))+facet_wrap(~testId,nrow = 3)
 
-temp.ep.pre[testId%in%c("V2F_7")&timeCount<600,#"prepare", #&!is.na(Kp)&Kp!=0,,"V2O_1","V2O_2","V2O_3",!testId%in%c("prepare","Casc_Low_1","Casc_Low_2")
-                            c("timeCount","testId","Time","Valveopening","Vset","Flowrate","OutWindT","InWindT","t_out_set","t_return_set","Kp","Ti","flow_set")]%>%#,
-  mutate(.,para=paste("Kp"=as.character(.$Kp),"Ti"=as.character(.$Ti),sep=","))%>%.[,!names(.)%in%c("Kp","Ti")]%>%
-  melt(.,id.var=c("timeCount","testId","Time","para"))%>%#,"Ti","para"
+data.ep.roomResponse.second[!is.na(testId)&testType=="Step"&timeCount&testVset<=20,#&testId=="MV=1_BV=0.25_F=33_Step""prepare", #&!is.na(Kp)&Kp!=0,,"V2O_1","V2O_2","V2O_3",!testId%in%c("prepare","Casc_Low_1","Casc_Low_2")
+                            c("timeCount","testId","Time","Valveopening","Vset","Flowrate","testVset")]%>%#,,"OutWindT","InWindT","t_out_set","t_return_set","Kp","Ti","flow_set"
+  #mutate(.,para=paste("Kp"=as.character(.$Kp),"Ti"=as.character(.$Ti),sep=","))%>%.[,!names(.)%in%c("Kp","Ti")]%>% 
+  melt(.,id.var=c("timeCount","testId","testVset"))%>%#,"Ti","para"
   as.data.table(.)%>%{ #,"InWindT","t_out_set"
-    ggplot(data=.[variable %in% c("Valveopening","Vset")],aes(x=timeCount,y=value,color=variable,lty=variable,width=4,group=variable))+
+    ggplot(data=.[variable %in% c("Valveopening","Vset","testVset")],aes(x=timeCount,y=value,lty=testId,color=variable,width=4,group=paste(testId,variable)))+
       geom_line()+
-      geom_line(data=.[variable %in% c("flow_set","Flowrate")],aes(x=timeCount,y=value*100))+#)+value#"OutWindT",(value-20)*5)
-      geom_line(data=.[variable %in% c("InWindT","t_out_set")],aes(x=timeCount,y=value))+
+      geom_line(data=.[variable %in% c("Flowrate")],aes(x=timeCount,y=value*100))+#)+value#"OutWindT",(value-20)*5)
+      # geom_line(data=.[variable %in% c("InWindT","t_out_set")],aes(x=timeCount,y=value))+
       scale_y_continuous(sec.axis = sec_axis(~./100,name = "Flow rate"))+#./5+20
-      facet_wrap(~testId,nrow = 3)+
-      theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),#legend.position = c(0.85,0.2),
+      facet_wrap(~testVset,nrow = 4)+
+      theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),legend.position = c(0.25,0.75),
                        legend.text = element_text(size=16))#
   }
 
 #流量可视化
-#阶跃迟滞环
-data.ep.roomResponse.second[!is.na(testId)&testId=="MV=0.5_BV=0_F=33_Step"&testVset<40,
-                            c("timeCount","Time","testId","Valveopening","testVset","Flowrate","Totalpressure","Subpressure")]%>%#,"isOn"
+#同一工况不同阶跃参数对比
+data.ep.roomResponse.second[!is.na(testId)&testId=="MV=1_BV=0_F=33_Step"&resistanceS<0.2&testVset<35,
+                            c("timeCount","Time","testId","Valveopening","Subpressure","Totalpressure","resistanceS","testVset","Flowrate","isOn")]%>%#
   #melt(.,id.var=c("timeCount","testId","Time","Vset"))%>%
-  ggplot(data = .,aes(x=Valveopening,y=Flowrate,color=as.factor(testVset)))+
-  geom_point(alpha=0.6)+
-  geom_path(aes(mapping = timeCount))+
-  facet_wrap(~as.factor(testVset),nrow = 2)#Valveopening
+  ggplot(data = .,aes(x=Valveopening,y=resistanceS,color=as.factor(testVset),mapping = timeCount))+
+  geom_point(aes(alpha=0.5,shape=isOn))+
+  geom_path()+
+  facet_wrap(~as.factor(testVset),nrow = 3)#Valveopening
 
-#不同工况迟滞环
-data.ep.roomResponse.second[!is.na(testId)&testType=="Step"&testVset==60,
-                            c("timeCount","Time","testId","Valveopening","testVset","Flowrate","Totalpressure","Subpressure")]%>%#,"isOn"
+#不同工况参数对比
+data.ep.roomResponse.second[!is.na(testId)&testType=="Step"&resistanceS<0.2&Valveopening<30&testVset<35&testId!="MV=1_BV=0.5_F=33_Step",#
+                            c("timeCount","Time","testId","Valveopening","testVset","Flowrate","Totalpressure","Subpressure","resistanceS","isOn")]%>%
   #melt(.,id.var=c("timeCount","testId","Time","Vset"))%>%
-  ggplot(data = .,aes(x=Valveopening,y=Flowrate,color=as.factor(testId)))+
-  geom_point(alpha=0.6)+
-  geom_path(aes(mapping = timeCount))#+
-  facet_wrap(~as.factor(testVset),nrow = 2)#Valveopening
+  ggplot(data = .,aes(x=Flowrate,y=Subpressure,color=as.factor(testVset),mapping = timeCount,group=paste(testId,testVset,isOn)))+
+  geom_point(aes(alpha=0.5,shape=isOn))+
+  geom_path(aes(lty=as.factor(testVset)))+facet_wrap(~as.factor(testId),nrow = 2)+
+  theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),legend.text = element_text(size=16))
 
 #低流量粘滞
-data.ep.roomResponse.second[!is.na(testId)&testId=="MV=0.5_BV=0_F=33_Step"&Vset.1<12,
-                            c("timeCount","Time","testId","Valveopening","Vset.1","Flowrate","Totalpressure","Subpressure")]%>%#,"isOn"
-  ggplot(data = .,aes(x=timeCount,y=Flowrate,color=as.factor(Vset.1)))+
+data.ep.roomResponse.second[!is.na(testId)&testVset==10&testType=="Step",#testVset=5,7,10
+                            c("timeCount","Time","testId","Valveopening","testVset","Flowrate")]%>%#,"isOn"
+  ggplot(data = .,aes(x=timeCount,y=Flowrate,color=testId))+
   geom_point(alpha=0.6)+
   geom_path()+
-  facet_wrap(~as.factor(Vset.1),nrow = 3)
+  facet_wrap(~as.factor(testVset)+testId,nrow = 3)
+
+#水头损失
+data.ep.roomResponse.second[timeCount<3000&testId=="MV=1_BV=0.25_F=33_Step"&testVset==30,#testVset=5,7,10
+                            c("timeCount","Time","subWaterH","Flowrate","Valveopening","resistanceS")]%>%
+  melt(.,id.var=c("timeCount","Time"))%>%{
+    ggplot(data = .,aes(x=timeCount,y=value,color=variable))+
+      geom_line(data = .[variable=="Flowrate"],aes(x=timeCount,y=value*10))+
+      geom_line(data = .[variable=="subWaterH"],aes(x=timeCount,y=value*1000))+
+      geom_line(data = .[variable=="resistanceS"],aes(x=timeCount,y=value*10))+
+      geom_line(data = .[variable=="Valveopening"],aes(x=timeCount,y=value/10))+ylim(c(0,10))
+  }#,"isOn"
+
+# 压强比例
+# 通过压强比例确定各迟滞的工况
+#压力占比
+data.ep.roomResponse.second[!is.na(testId)&testId!=""&testType!="Grad"&testVset<30&testVset>10,#testVset=5,7,10 &timeCount<3000&timeCount>2500&testId=="MV=1_BV=0.25_F=33_Step"&testId=="MV=0.5_BV=0_F=33_Step"
+                            c("timeCount","Time","testId","testType","Subpressure","Totalpressure","Flowrate","Valveopening","resistanceS","isOn","testVset")]%>%{
+    ggplot(data = .)+
+      geom_point(aes(x=Valveopening,y=Totalpressure,color=testId,shape=isOn),alpha=0.5)+
+      # geom_line(aes(x=timeCount,y=Subpressure,color=testId),lty="dashed")+
+      # geom_line(aes(x=timeCount,y=Totalpressure,color=testId))+
+      # geom_line(aes(x=timeCount,y=Valveopening,color=testId),lty="dotted")+
+      # geom_line(aes(x=timeCount,y=Flowrate*100,color=testId),lty="longdash")+
+      facet_wrap(.~testVset,nrow=2)+#ylim(c(0.5,1.1))+
+      theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),legend.text = element_text(size=16))
+  }#,"isOn"
 
 
+
+####检查一下阀门阻力基本保持不变的情况####
+nn1<-(data.ep.roomResponse.second[!is.na(testId)&testId=="MV=1_BV=0_F=33_Step"&testVset==30])
+nn1[,c("ID","testType","Totalpressure","totalWaterH","subWaterH","timeLabel",
+       "Subpressure","InWaterT","OutWaterT","InWindT","OutWindT","Fset","Tset","t_out_set","t_return_set","flow_set","Powerset","Fre","HeatingRate")]<-NULL
+nn1$onRoutine<-as.character(nn1$isOn)
+ggplot(data=nn1[resistanceS<0.2],aes(x=timeCount,y=resistanceS))+geom_point()
+
+data.ep.roomResponse.second[testType=="Step"&testVset==Vset&isOn=="FALSE"&!is.na(resistanceS)&resistanceS<0.1&testVset<35]%>%
+  ggplot(data=.,aes(x=testId,y=resistanceS,color=as.factor(Vset)))+geom_boxplot()
+
+####统计各阶跃工况稳定时的波动情况####
+stat.ep.valveStable<-data.ep.roomResponse.second[testType=="Step"&testVset==Vset&isOn=="FALSE",.(
+  statTestId=testId[1],
+  Vset=Vset[1],
+  lowWsk=-999,#直接boxplot全空会返回logical
+  highWsk=-999,#好蠢啊
+  meanResistance=mean(resistanceS,na.rm=TRUE),
+  sdResistance=sd(resistanceS,na.rm=TRUE),
+  meanFlowrate=mean(Flowrate,na.rm=TRUE),
+  sdFlowrate=sd(Flowrate,na.rm=TRUE)
+),by=paste(testId,testVset,sep = "_")]
+getMatch<-function(x,num){ boxplot.stats(data.ep.roomResponse.second[testId==x[1]&Vset==as.integer(x[2])]$resistanceS)$stats[num] }
+
+stat.ep.valveStable[!is.nan(meanResistance)]<-stat.ep.valveStable[!is.nan(meanResistance)]%>%
+  mutate(.,lowWsk=apply(.[,c("statTestId","Vset")], MARGIN = 1,FUN = getMatch,num=1),
+         highWsk=apply(.[,c("statTestId","Vset")], MARGIN = 1,FUN = getMatch,num=5))
+stat.ep.valveStable$statTestId<-as.character(stat.ep.valveStable$statTestId)
+
+stat.ep.valveStable$stableRange<-stat.ep.valveStable$highWsk-stat.ep.valveStable$lowWsk
+
+####以阻力变化识别克服迟滞
+#这个方法可以，但是会有部分偶尔波动出界的不被识别
+nn1[isOn %in% c("Descending")]$onRoutine<-apply(nn1[isOn=="Descending",c("resistanceS","testId","testVset")],MARGIN = 1,
+                                         FUN = function(x){
+                                           
+                                           if(is.na(x[1])){
+                                             return(NA)
+                                           }#切记多元素的&，而非&&
+                                           range<-as.numeric(stat.ep.valveStable[statTestId==x[2]&Vset==as.numeric(x[3]),c("lowWsk","highWsk")])
+                                           if(anyNA(range)){
+                                             return(NA)
+                                           }
+                                           if(x[1]>range[1]&x[1]<range[2]){
+                                             return("Descending_overcome")
+                                           }else
+                                             return(NA)
+                                         })
+for(i in unique(nn1$testId)){
+  maxStable<-max(stat.ep.valveStable[statTestId==i&Vset]$highWsk)[1]
+  minStable<-min(stat.ep.valveStable[statTestId==i]$lowWsk)[1]
+  range<-range(nn1[isOn %in% c("Descending")&resistanceS<maxStable&resistanceS>minStable]$Valveopening)
+  nn1[isOn %in% c("Descending")&Valveopening>range[1]&Valveopening<range[2]]$onRoutine<-"Descending_overcome"
+}
+nn1[isOn %in% c("Descending")&
+      resistanceS<max(stat.ep.valveStable[statTestId%in%testId]$highWsk)[1]&
+      resistanceS>min(stat.ep.valveStable[statTestId%in%testId]$lowWsk)[1]]$onRoutine<-"Descending_overcome"
+
+####以流量变化克服迟滞
+# 会稍微保守一点
+nn1[isOn %in% c("Descending")&Flowrate>max(Flowrate)*0.95]$onRoutine<-"Descending_overcome"
+ggplot(data=nn1,aes(x=Valveopening,y=resistanceS,color=onRoutine))+geom_point()+ylim(c(0,0.5))
+
+
+####克服迟滞情况附标签####
+for(i in unique(data.ep.roomResponse.second[testType=="Step"]$testId)){
+  data.ep.roomResponse.second[]
+}
+
+
+  
 ####统计一下各case的情况####
 nn<-temp.ep.pre[timeCount<600&testId=="V2F_4"][timeCount %in% c((max(timeCount)-100):max(timeCount))]
 mean(temp.ep.pre[timeCount<600&testId=="V2F_4"][timeCount%in% c(max(timeCount)-100:max(timeCount))]$InWindT,na.rm=TRUE)
