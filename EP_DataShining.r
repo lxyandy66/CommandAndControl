@@ -1,11 +1,11 @@
 data.ep.raw<-as.data.table(read.csv(file="OriginalData/ModiTestId_StepResponseForRecognition_20210625.csv"))
 
-#²»ÄÜÖ±½Ólabel£¬ÒòÎªÃ¿´ÎÖØĞÂÖ´ĞĞlabViewÊ±»áÖØÖÃ£¬Òò´Ë¿ÉÄÜÖØ¸´
+#ä¸èƒ½ç›´æ¥labelï¼Œå› ä¸ºæ¯æ¬¡é‡æ–°æ‰§è¡ŒlabViewæ—¶ä¼šé‡ç½®ï¼Œå› æ­¤å¯èƒ½é‡å¤
 data.ep.raw$Time<-as.POSIXct(data.ep.raw$Time)
 data.ep.raw$timeLabel<-format(data.ep.raw$Time,format="%Y-%m-%d %H:%M:%S")
 
 
-#¿´Ò»ÏÂ·Ö²¼£¬È¥³ıÔ­Ê¼Êı¾İµÄÒì³£Öµ
+#çœ‹ä¸€ä¸‹åˆ†å¸ƒï¼Œå»é™¤åŸå§‹æ•°æ®çš„å¼‚å¸¸å€¼
 ggplot(data.ep.raw,aes(x=Flowrate))+geom_density()
 ggplot(data.ep.raw,aes(x=1,y=Flowrate))+geom_boxplot()
 
@@ -13,7 +13,7 @@ data.ep.raw<-data.ep.raw%>%{
     .[Totalpressure>200]$Totalpressure<-NA #
     .[Subpressure>200]$Subpressure<-NA #
     .[Flowrate>10]$Flowrate<-NA #
-    .[InWaterT<10|InWaterT>80]$InWaterT<-NA # #ÇĞ¼Ç|»á¶¼±È½ÏÁ½¸öÅĞ¶Ï£¬µ«||Ö»»á±È½ÏÒ»¸ö£¬Âú×ã¼´·µ»Ø
+    .[InWaterT<10|InWaterT>80]$InWaterT<-NA # #åˆ‡è®°|ä¼šéƒ½æ¯”è¾ƒä¸¤ä¸ªåˆ¤æ–­ï¼Œä½†||åªä¼šæ¯”è¾ƒä¸€ä¸ªï¼Œæ»¡è¶³å³è¿”å›
     .[OutWaterT<10|OutWaterT>80]$OutWaterT<-NA #
     .[InWindT<10]$InWindT<-NA
     .[OutWindT<10]$OutWindT<-NA
@@ -22,19 +22,19 @@ data.ep.raw<-data.ep.raw%>%{
 }
 
 
-####ÕûºÏÖÁÃë¼¶####
-#¿ÉÄÜÓĞÎÊÌâµÄ: PowerºÍPowerset
-# Ä¿Ç°Ö±½ÓÈ¡Æ½¾ùÖµ
+####æ•´åˆè‡³ç§’çº§####
+#å¯èƒ½æœ‰é—®é¢˜çš„: Powerå’ŒPowerset
+# ç›®å‰ç›´æ¥å–å¹³å‡å€¼
 setorder(data.ep.raw,Time)
-#×¢Òâ£¡getModeÓĞÏàÍ¬³öÏÖ´ÎÊıÊ±¿ÉÄÜ·µ»Ø¶à¸öÊıÖµ
+#æ³¨æ„ï¼getModeæœ‰ç›¸åŒå‡ºç°æ¬¡æ•°æ—¶å¯èƒ½è¿”å›å¤šä¸ªæ•°å€¼
 data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=Label[1],
                                                   testId=getMode(testId,na.rm = TRUE)[1],
                                                   Vset=getMode(Vset,na.rm = TRUE)[1],
-                                                  testVset=getMode(testVset,na.rm = TRUE)[1],#·§ÃÅ²âÊÔÓÃ
-                                                  isOn=getMode(isOn,na.rm = TRUE)[1],#·§ÃÅ²âÊÔÓÃ
-                                                  testType=getMode(testType,na.rm = TRUE)[1],#·§ÃÅ²âÊÔÓÃ
-                                                  onRoutine=getMode(onRoutine,na.rm = TRUE)[1]#·§ÃÅ²âÊÔÓÃ£¬onRoutine¶ÔÓÚGrad²âÊÔ¶øÑÔ£¬ÉÏÉı½×¶ÎÎªTRUE£¬·´Ö®ÎªFALSE
-                                                  #×¢Òâ²ÉÑùÊ±¼äÎÊÌâ£¬ÊÇÓÃÖÚÊı»¹ÊÇÆ½¾ùÊı£¬¶ÔÓÚÊÖ¶¯ÖÚÊıÃ»ÎÊÌâ£¬¿¼ÂÇ´®¼¶×Ô¶¯µÄÊ±ºò
+                                                  testVset=getMode(testVset,na.rm = TRUE)[1],#é˜€é—¨æµ‹è¯•ç”¨
+                                                  isOn=getMode(isOn,na.rm = TRUE)[1],#é˜€é—¨æµ‹è¯•ç”¨
+                                                  testType=getMode(testType,na.rm = TRUE)[1],#é˜€é—¨æµ‹è¯•ç”¨
+                                                  onRoutine=getMode(onRoutine,na.rm = TRUE)[1]#é˜€é—¨æµ‹è¯•ç”¨ï¼ŒonRoutineå¯¹äºGradæµ‹è¯•è€Œè¨€ï¼Œä¸Šå‡é˜¶æ®µä¸ºTRUEï¼Œåä¹‹ä¸ºFALSE
+                                                  #æ³¨æ„é‡‡æ ·æ—¶é—´é—®é¢˜ï¼Œæ˜¯ç”¨ä¼—æ•°è¿˜æ˜¯å¹³å‡æ•°ï¼Œå¯¹äºæ‰‹åŠ¨ä¼—æ•°æ²¡é—®é¢˜ï¼Œè€ƒè™‘ä¸²çº§è‡ªåŠ¨çš„æ—¶å€™
                                                   ),by=timeLabel],
                       data.ep.raw[,lapply(.SD,mean,na.rm=TRUE),
                                    .SDcols=c("Flowrate","Totalpressure","Subpressure","InWaterT","OutWaterT",
@@ -46,7 +46,7 @@ View(table(data.ep.roomResponse.second$Vset))
 
 
 
-####¸ù¾İÊ±¼ä·ÖÅäTestId####
+####æ ¹æ®æ—¶é—´åˆ†é…TestId####
 data.ep.roomResponse.second$testId<-"prepare"
 info.ep.testId<-read.xlsx(file="Info_TestId.xlsx",sheetName = "0602")%>%as.data.table(.)
 apply(info.ep.testId[,c("start","end","testId")], MARGIN = 1, function(x){
@@ -56,31 +56,31 @@ data.ep.roomResponse.second<-merge(x=data.ep.roomResponse.second,
                                    y=info.ep.testId[,c("testId","Kp","Ti")],all.x = TRUE,by = "testId")
 
 
-####¸ù¾İTestId·ÖÅäÕıĞòµÄlabel####
-#Ô­À´µÄ³ÌĞòlabel²»Ò»Ñù£¬²â³öÀ´label¶ÔÓ¦Ò»¸öÊÇ1sÒ»¸öÊÇ2s
+####æ ¹æ®TestIdåˆ†é…æ­£åºçš„label####
+#åŸæ¥çš„ç¨‹åºlabelä¸ä¸€æ ·ï¼Œæµ‹å‡ºæ¥labelå¯¹åº”ä¸€ä¸ªæ˜¯1sä¸€ä¸ªæ˜¯2s
 data.ep.roomResponse.second$timeCount<- -999
 for(i in unique(data.ep.roomResponse.second[testId!="prepare"]$testId)){
   data.ep.roomResponse.second[testId==i]$timeCount<-0:(nrow(data.ep.roomResponse.second[testId==i])-1)
 }
 
 
-####Í¨¹ı·§ÃÅÁ÷Á¿´¦Àí####
+####é€šè¿‡é˜€é—¨æµé‡å¤„ç†####
 
-#¼ÆËãË®Í·
+#è®¡ç®—æ°´å¤´
 data.ep.roomResponse.second<-data.ep.roomResponse.second%>%
                                 mutate(.,totalWaterH=.$Totalpressure/9807,subWaterH=.$Subpressure/9807)%>%
                                 as.data.table(.)
-#¼ÆËãÖ§Â·Á÷×èÏµÊı
+#è®¡ç®—æ”¯è·¯æµé˜»ç³»æ•°
 data.ep.roomResponse.second$resistanceS<-data.ep.roomResponse.second$subWaterH/(data.ep.roomResponse.second$Flowrate*data.ep.roomResponse.second$Flowrate)
 data.ep.roomResponse.second[is.infinite(resistanceS)]$resistanceS<-NA
 
-####·§ÃÅ-Á÷Á¿´¦Àí####
-#ÉÏĞĞÏÂĞĞ´¦Àí
+####é˜€é—¨-æµé‡å¤„ç†####
+#ä¸Šè¡Œä¸‹è¡Œå¤„ç†
 data.ep.roomResponse.second$isOn<-as.character(data.ep.roomResponse.second$isOn)
 data.ep.roomResponse.second[isOn=="TRUE"&Valveopening<Vset]$isOn<-"Ascending"
 data.ep.roomResponse.second[isOn=="TRUE"&Valveopening>Vset]$isOn<-"Descending"
 
-#GradÁ÷Á¿È¡¾ùÖµ
+#Gradæµé‡å–å‡å€¼
 data.ep.valveFlow<-data.ep.roomResponse.second[testType=="Grad",
                                                .(testId=testId[1],
                                                  Vset=Vset[1],
@@ -91,14 +91,14 @@ data.ep.valveFlow<-data.ep.roomResponse.second[testType=="Grad",
                                                  Subpressure=mean(Subpressure,na.rm=TRUE),
                                                  Totalpressure=mean(Totalpressure,na.rm=TRUE)
                                                  ),by=(testIdVsetDir=paste(testId,Vset,onRoutine,sep = "_"))]
-#Æ½¾ùºó³ÙÖÍ»·ÆÀ¹À
-#Ñ¡ÓÃGrad²âÊÔÏàµ±ÓÚÈ¡Æ½¾ù£¬Êµ¼ÊÉÏStepÒ²¿ÉÒÔ×öµ½£¬Ö»ÊÇ´¦ÀíÆğÀ´±È½ÏÂé·³
-####´Ë´¦¿ÉÓÃÓÚÁ÷Á¿·½³ÌÖĞHµÄÈ·¶¨####
-ggplot(data.ep.valveFlow,aes(x=Flowrate,y=Totalpressure,color=testId,shape=onRoutine))+geom_point()+geom_line()
+#å¹³å‡åè¿Ÿæ»ç¯è¯„ä¼°
+#é€‰ç”¨Gradæµ‹è¯•ç›¸å½“äºå–å¹³å‡ï¼Œå®é™…ä¸ŠStepä¹Ÿå¯ä»¥åšåˆ°ï¼Œåªæ˜¯å¤„ç†èµ·æ¥æ¯”è¾ƒéº»çƒ¦
+####æ­¤å¤„å¯ç”¨äºæµé‡æ–¹ç¨‹ä¸­Hçš„ç¡®å®š####
+ggplot(data.ep.valveFlow,aes(x=Valveopening,y=Subpressure/Totalpressure,color=testId,shape=onRoutine))+geom_point()+geom_line()
 stat.ep.valveFlow<-data.ep.valveFlow[,.(maxHR=(Flowrate[onRoutine==TRUE]-Flowrate[onRoutine==FALSE])
                                         ),by=(testIdVset=paste(testId,Vset,sep = "_"))]
 
-####¿ÉÊÓ»¯####
+####å¯è§†åŒ–####
 data.ep.roomResponse.second[testId=="Klow_1.1"]%>%
   ggplot(data=.,aes(x=Label,y=t_out_set,color=testId,lty=testId))+
   geom_line()+geom_line(aes(x=Label,y=InWindT))+geom_line(aes(x=Label,y=Flowrate*50))+facet_wrap(~testId,nrow = 3)
@@ -118,8 +118,8 @@ data.ep.roomResponse.second[!is.na(testId)&testType=="Step"&timeCount&testVset<=
                        legend.text = element_text(size=16))#
   }
 
-#Á÷Á¿¿ÉÊÓ»¯
-#Í¬Ò»¹¤¿ö²»Í¬½×Ô¾²ÎÊı¶Ô±È
+#æµé‡å¯è§†åŒ–
+#åŒä¸€å·¥å†µä¸åŒé˜¶è·ƒå‚æ•°å¯¹æ¯”
 data.ep.roomResponse.second[!is.na(testId)&testId=="MV=1_BV=0_F=33_Step"&resistanceS<0.2&testVset<35,
                             c("timeCount","Time","testId","Valveopening","Subpressure","Totalpressure","resistanceS","testVset","Flowrate","isOn")]%>%#
   #melt(.,id.var=c("timeCount","testId","Time","Vset"))%>%
@@ -128,7 +128,7 @@ data.ep.roomResponse.second[!is.na(testId)&testId=="MV=1_BV=0_F=33_Step"&resista
   geom_path()+
   facet_wrap(~as.factor(testVset),nrow = 3)#Valveopening
 
-#²»Í¬¹¤¿ö²ÎÊı¶Ô±È
+#ä¸åŒå·¥å†µå‚æ•°å¯¹æ¯”
 data.ep.roomResponse.second[!is.na(testId)&testType=="Step"&resistanceS<0.2&Valveopening<30&testVset<35&testId!="MV=1_BV=0.5_F=33_Step",#
                             c("timeCount","Time","testId","Valveopening","testVset","Flowrate","Totalpressure","Subpressure","resistanceS","isOn")]%>%
   #melt(.,id.var=c("timeCount","testId","Time","Vset"))%>%
@@ -137,7 +137,7 @@ data.ep.roomResponse.second[!is.na(testId)&testType=="Step"&resistanceS<0.2&Valv
   geom_path(aes(lty=as.factor(testVset)))+facet_wrap(~as.factor(testId),nrow = 2)+
   theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),legend.text = element_text(size=16))
 
-#µÍÁ÷Á¿Õ³ÖÍ
+#ä½æµé‡ç²˜æ»
 data.ep.roomResponse.second[!is.na(testId)&testVset==10&testType=="Step",#testVset=5,7,10
                             c("timeCount","Time","testId","Valveopening","testVset","Flowrate")]%>%#,"isOn"
   ggplot(data = .,aes(x=timeCount,y=Flowrate,color=testId))+
@@ -145,7 +145,7 @@ data.ep.roomResponse.second[!is.na(testId)&testVset==10&testType=="Step",#testVs
   geom_path()+
   facet_wrap(~as.factor(testVset)+testId,nrow = 3)
 
-#Ë®Í·ËğÊ§
+#æ°´å¤´æŸå¤±
 data.ep.roomResponse.second[timeCount<3000&testId=="MV=1_BV=0.25_F=33_Step"&testVset==30,#testVset=5,7,10
                             c("timeCount","Time","subWaterH","Flowrate","Valveopening","resistanceS")]%>%
   melt(.,id.var=c("timeCount","Time"))%>%{
@@ -156,9 +156,9 @@ data.ep.roomResponse.second[timeCount<3000&testId=="MV=1_BV=0.25_F=33_Step"&test
       geom_line(data = .[variable=="Valveopening"],aes(x=timeCount,y=value/10))+ylim(c(0,10))
   }#,"isOn"
 
-# Ñ¹Ç¿±ÈÀı
-# Í¨¹ıÑ¹Ç¿±ÈÀıÈ·¶¨¸÷³ÙÖÍµÄ¹¤¿ö
-#Ñ¹Á¦Õ¼±È
+# å‹å¼ºæ¯”ä¾‹
+# é€šè¿‡å‹å¼ºæ¯”ä¾‹ç¡®å®šå„è¿Ÿæ»çš„å·¥å†µ
+#å‹åŠ›å æ¯”
 data.ep.roomResponse.second[!is.na(testId)&testId!=""&testType!="Grad"&testVset<30&testVset>10,#testVset=5,7,10 &timeCount<3000&timeCount>2500&testId=="MV=1_BV=0.25_F=33_Step"&testId=="MV=0.5_BV=0_F=33_Step"
                             c("timeCount","Time","testId","testType","Subpressure","Totalpressure","Flowrate","Valveopening","resistanceS","isOn","testVset")]%>%{
     ggplot(data = .)+
@@ -173,7 +173,7 @@ data.ep.roomResponse.second[!is.na(testId)&testId!=""&testType!="Grad"&testVset<
 
 
 
-####¼ì²éÒ»ÏÂ·§ÃÅ×èÁ¦»ù±¾±£³Ö²»±äµÄÇé¿ö####
+####æ£€æŸ¥ä¸€ä¸‹é˜€é—¨é˜»åŠ›åŸºæœ¬ä¿æŒä¸å˜çš„æƒ…å†µ####
 nn1<-(data.ep.roomResponse.second[!is.na(testId)&testId=="MV=1_BV=0_F=33_Step"&testVset==30])
 nn1[,c("ID","testType","Totalpressure","totalWaterH","subWaterH","timeLabel",
        "Subpressure","InWaterT","OutWaterT","InWindT","OutWindT","Fset","Tset","t_out_set","t_return_set","flow_set","Powerset","Fre","HeatingRate")]<-NULL
@@ -183,12 +183,12 @@ ggplot(data=nn1[resistanceS<0.2],aes(x=timeCount,y=resistanceS))+geom_point()
 data.ep.roomResponse.second[testType=="Step"&testVset==Vset&isOn=="FALSE"&!is.na(resistanceS)&resistanceS<0.1&testVset<35]%>%
   ggplot(data=.,aes(x=testId,y=resistanceS,color=as.factor(Vset)))+geom_boxplot()
 
-####Í³¼Æ¸÷½×Ô¾¹¤¿öÎÈ¶¨Ê±µÄ²¨¶¯Çé¿ö####
+####ç»Ÿè®¡å„é˜¶è·ƒå·¥å†µç¨³å®šæ—¶çš„æ³¢åŠ¨æƒ…å†µ####
 stat.ep.valveStable<-data.ep.roomResponse.second[testType=="Step"&testVset==Vset&isOn=="FALSE",.(
   statTestId=testId[1],
   Vset=Vset[1],
-  lowWsk=-999,#Ö±½ÓboxplotÈ«¿Õ»á·µ»Ølogical
-  highWsk=-999,#ºÃ´À°¡
+  lowWsk=-999,#ç›´æ¥boxplotå…¨ç©ºä¼šè¿”å›logical
+  highWsk=-999,#å¥½è ¢å•Š
   meanResistance=mean(resistanceS,na.rm=TRUE),
   sdResistance=sd(resistanceS,na.rm=TRUE),
   meanFlowrate=mean(Flowrate,na.rm=TRUE),
@@ -203,14 +203,14 @@ stat.ep.valveStable$statTestId<-as.character(stat.ep.valveStable$statTestId)
 
 stat.ep.valveStable$stableRange<-stat.ep.valveStable$highWsk-stat.ep.valveStable$lowWsk
 
-####ÒÔ×èÁ¦±ä»¯Ê¶±ğ¿Ë·ş³ÙÖÍ
-#Õâ¸ö·½·¨¿ÉÒÔ£¬µ«ÊÇ»áÓĞ²¿·ÖÅ¼¶û²¨¶¯³ö½çµÄ²»±»Ê¶±ğ
+####ä»¥é˜»åŠ›å˜åŒ–è¯†åˆ«å…‹æœè¿Ÿæ»
+#è¿™ä¸ªæ–¹æ³•å¯ä»¥ï¼Œä½†æ˜¯ä¼šæœ‰éƒ¨åˆ†å¶å°”æ³¢åŠ¨å‡ºç•Œçš„ä¸è¢«è¯†åˆ«
 nn1[isOn %in% c("Descending")]$onRoutine<-apply(nn1[isOn=="Descending",c("resistanceS","testId","testVset")],MARGIN = 1,
                                          FUN = function(x){
                                            
                                            if(is.na(x[1])){
                                              return(NA)
-                                           }#ÇĞ¼Ç¶àÔªËØµÄ&£¬¶ø·Ç&&
+                                           }#åˆ‡è®°å¤šå…ƒç´ çš„&ï¼Œè€Œé&&
                                            range<-as.numeric(stat.ep.valveStable[statTestId==x[2]&Vset==as.numeric(x[3]),c("lowWsk","highWsk")])
                                            if(anyNA(range)){
                                              return(NA)
@@ -230,32 +230,32 @@ nn1[isOn %in% c("Descending")&
       resistanceS<max(stat.ep.valveStable[statTestId%in%testId]$highWsk)[1]&
       resistanceS>min(stat.ep.valveStable[statTestId%in%testId]$lowWsk)[1]]$onRoutine<-"Descending_overcome"
 
-####ÒÔÁ÷Á¿±ä»¯¿Ë·ş³ÙÖÍ
-# »áÉÔÎ¢±£ÊØÒ»µã
+####ä»¥æµé‡å˜åŒ–å…‹æœè¿Ÿæ»
+# ä¼šç¨å¾®ä¿å®ˆä¸€ç‚¹
 nn1[isOn %in% c("Descending")&Flowrate>max(Flowrate)*0.95]$onRoutine<-"Descending_overcome"
 ggplot(data=nn1,aes(x=Valveopening,y=resistanceS,color=onRoutine))+geom_point()+ylim(c(0,0.5))
 
 
-####¿Ë·ş³ÙÖÍÇé¿ö¸½±êÇ©####
+####å…‹æœè¿Ÿæ»æƒ…å†µé™„æ ‡ç­¾####
 for(i in unique(data.ep.roomResponse.second[testType=="Step"]$testId)){
   data.ep.roomResponse.second[]
 }
 
 
   
-####Í³¼ÆÒ»ÏÂ¸÷caseµÄÇé¿ö####
+####ç»Ÿè®¡ä¸€ä¸‹å„caseçš„æƒ…å†µ####
 nn<-temp.ep.pre[timeCount<600&testId=="V2F_4"][timeCount %in% c((max(timeCount)-100):max(timeCount))]
 mean(temp.ep.pre[timeCount<600&testId=="V2F_4"][timeCount%in% c(max(timeCount)-100:max(timeCount))]$InWindT,na.rm=TRUE)
 
 stat.ep.testId<-temp.ep.pre[timeCount<600,.(
   duration=max(timeLabel,na.rm = TRUE),
   peakime=timeCount[InWindT==max(InWindT,na.rm = TRUE)][1],
-  startTout=mean(InWindT[timeCount%in%1:10],na.rm=TRUE),#¿ªÊ¼Ê±¿ÌµÄËÍ·çÎÂ¶È
-  startTroom=mean(OutWindT[timeCount%in%1:10],na.rm=TRUE),#¿ªÊ¼Ê±¿ÌµÄÊÒÄÚÎÂ¶È
-  startFlowrate=mean(Flowrate[timeCount%in%1:10],na.rm=TRUE),#¿ªÊ¼Ê±¿ÌµÄÁ÷Á¿
+  startTout=mean(InWindT[timeCount%in%1:10],na.rm=TRUE),#å¼€å§‹æ—¶åˆ»çš„é€é£æ¸©åº¦
+  startTroom=mean(OutWindT[timeCount%in%1:10],na.rm=TRUE),#å¼€å§‹æ—¶åˆ»çš„å®¤å†…æ¸©åº¦
+  startFlowrate=mean(Flowrate[timeCount%in%1:10],na.rm=TRUE),#å¼€å§‹æ—¶åˆ»çš„æµé‡
   meanValveBias=mean(abs(Valveopening-Vset),na.rm=TRUE),
-  meanLastTout=mean(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE),#×îºó100sµÄ²¨¶¯Çé¿ö#(length(timeCount)-60:length(timeCount))
-  sdLastTout=sd(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE),#×îºó100sµÄ²¨¶¯Çé¿ö
+  meanLastTout=mean(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE),#æœ€å100sçš„æ³¢åŠ¨æƒ…å†µ#(length(timeCount)-60:length(timeCount))
+  sdLastTout=sd(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE),#æœ€å100sçš„æ³¢åŠ¨æƒ…å†µ
   maxTout=max(InWindT,na.rm = TRUE),
   overshoot=(max(InWindT,na.rm = TRUE)/mean(InWindT[timeCount%in% c((length(timeCount)-100):length(timeCount))],na.rm = TRUE))-1
 ),by=testId]%>%
@@ -263,18 +263,18 @@ stat.ep.testId<-temp.ep.pre[timeCount<600,.(
 
 
   
-##²é¿´×îºó2min±ä»¯
+##æŸ¥çœ‹æœ€å2minå˜åŒ–
 data.ep.roomResponse.second[testId=="OrgCascWithSetpoint"]%>%
   .[(nrow(nn)-120):nrow(nn),c("Time","OutWindT","t_return_set")]%>%#,"t_out_set""OutWindT",
   melt(data=.,id.var=c("Time"))%>%
   ggplot(data=.,aes(x=variable,y=value,color=variable))+geom_boxplot()+ylim(25,30)
 
 
-#Êä³öÃë¼¶Êı¾İ
+#è¾“å‡ºç§’çº§æ•°æ®
 write.xlsx(data.ep.roomResponse.second,file="SecVer_RoomResponse_20210507.xlsx")
 
-####¿´Ò»ÏÂ·§ÃÅµÄ¿ª¹Ø####
-#sheetName = "·§ÃÅ¿ª¹ØÏìÓ¦"
+####çœ‹ä¸€ä¸‹é˜€é—¨çš„å¼€å…³####
+#sheetName = "é˜€é—¨å¼€å…³å“åº”"
 data.ep.valveFlow<-as.data.table(read.csv(file="OriginalData/SecVer_ResponseOnOffTest_20210506.csv"))%>%
   mutate(.,TestId=as.factor(.$TestId),isOn=(.$from<.$to))%>%as.data.table(.)%>%.[complete.cases(.)]
 
@@ -282,8 +282,8 @@ ggplot(data=data.ep.valveFlow[TestId%in%c("2","3","4","5","6","RTR_2","T2")|(Tes
   theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),legend.text = element_text(size=16))
 
 
-####ÊÒÎÂ»ù±¾ÏìÓ¦####
-# sheetName = "ÎÂ¶ÈÏìÓ¦"
+####å®¤æ¸©åŸºæœ¬å“åº”####
+# sheetName = "æ¸©åº¦å“åº”"
 data.ep.temp<-as.data.table(read.xlsx(file="SecVer_ResponseTest_20210506.xlsx",sheetIndex =  2))
 ggplot(data=data.ep.temp,aes(x=Label,y=Flowrate,color=isOn,lty=TestId))+geom_line()+facet_wrap(~TestId,nrow = 2)
 
