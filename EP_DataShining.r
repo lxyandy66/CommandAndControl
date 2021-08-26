@@ -52,6 +52,7 @@ data.ep.roomResponse.second<-cbind(data.ep.raw[,.(Time=Time[1],ID=ID[1],Label=La
                                              "t_out_set","t_return_set","flow_set",
                                              "Powerset","Fre","HeatingRate"),by=timeLabel][,-"timeLabel"])%>%
                 mutate(.,Time=as.POSIXct(.$Time))%>%as.data.table()
+View(table(data.ep.roomResponse.second$Vset))
 
 
 ####拆分阀门开度####
