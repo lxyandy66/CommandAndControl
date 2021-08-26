@@ -77,6 +77,7 @@ data.ep.recognitionTest<-data.ep.realTest[testId=="Real_V2O2R_MV=0.75_BV=0.25_No
 data.ep.realTest$isOn<-"Stable"
 data.ep.realTest[testId=="Real_V2O2R_MV=0.75_BV=0.25_NoLim"][472:478]$isOn<-"Ascending"
 data.ep.realTest[testId=="Real_V2O2R_MV=0.75_BV=0.25_NoLim"][43:50]$isOn<-"Descending"
+data.ep.realTest[testId=="Real_V2O2R_MV=0.75_BV=0.25_NoLim"][250:253]$isOn<-"Stable"
 
 # 数据中原始情况
 ggplot(data=data.ep.recognitionTest,aes(x=Flowrate,y=subWaterH,color=isOn))+geom_point()+geom_line()
@@ -151,6 +152,10 @@ ggplot(data.ep.resistanceFitting.valid[resistanceS<0.8&estResistanceS<0.8&isOn!=
 
 
 write.csv(data.ep.recognitionTest,file = "RealTestForFitting.csv")
+
+
+
+data.ep.recognitionTest[93:97]$isOn<-"Stable"
 
 
 nn<-read.csv(file="RealTestForFitting_removed.csv")%>%mutate(.,valveSlot=Valveopening*(1+runif(nrow(.),0,0.01)))%>%as.data.table(.)

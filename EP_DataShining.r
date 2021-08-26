@@ -177,22 +177,22 @@ data.ep.roomResponse.second%>%
   geom_line()+geom_line(aes(x=Label,y=InWindT))+geom_line(aes(x=Label,y=Flowrate*50))+facet_wrap(~testId,nrow = 3)
 
 
-data.ep.responseTest[mvOpening=="MV=0.75"&bvOpening=="BV=0.25"&timeCount<200,#&timeCount&testVset<=20,#&"prepare", #&!is.na(Kp)&Kp!=0,,"V2O_1","V2O_2","V2O_3",!testId%in%c("prepare","Casc_Low_1","Casc_Low_2")
+data.ep.realTest[testId=="Real_V2O2R_MV=0.75_BV=0.25_NoLim"][timeCount<150,#&&testVset<=20,
                             c("timeCount","testId","Valveopening","Vset","Flowrate",
-                              "InWindT","t_out_set","testType",
+                              "InWindT","t_out_set","isOn","Subpressure",
                               "OutWindT","t_return_set",
                               "resistanceS")]%>%#,,"testVset","testVset",,"Kp","Ti","flow_set"
   # mutate_at(.,c("resistanceS"),function(x){ifelse(x>1|is.na(x),20,x*20)})%>%
   #mutate(.,para=paste("Kp"=as.character(.$Kp),"Ti"=as.character(.$Ti),sep=","))%>%.[,!names(.)%in%c("Kp","Ti")]%>% 
-  melt(.,id.var=c("timeCount","testType","testId"))%>%#,"Ti","para","testVset"
+  melt(.,id.var=c("timeCount","testId","isOn"))%>%#,"Ti","para","testVset"
   as.data.table(.)%>%{ #,"InWindT","t_out_set","resistanceS"
-    ggplot(data=.[variable %in% c("Valveopening","Vset")],aes(x=timeCount,y=value,color=variable,width=4,group=paste(testId,variable)))+
-      geom_path()+#geom_point()+
-      geom_line(data=.[variable %in% c("Flowrate")],aes(x=timeCount,y=value*100))+#)+value#"OutWindT",(value-20)*5)
+    ggplot(data=.[variable %in% c("Valveopening","Vset","Subpressure")],aes(x=timeCount,y=value,color=variable,width=4,group=paste(testId,variable),shape=isOn))+
+      geom_path()+geom_point()+
+      # geom_line(data=.[variable %in% c("Flowrate")],aes(x=timeCount,y=value*100))+#)+value#"OutWindT",(value-20)*5)
       # geom_line(data=.[variable %in% c("InWindT","t_out_set")],aes(x=timeCount,y=value))+
       # geom_line(data=.[variable %in% c("OutWindT","t_return_set")],aes(x=timeCount,y=value))+
       scale_y_continuous(sec.axis = sec_axis(~./100,name = "Flow rate"))+#./5+20
-      facet_wrap(~testType,ncol = 2)+
+      # facet_wrap(~testType,ncol = 2)+
       theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),#legend.position = c(0.25,0.75),
                        legend.text = element_text(size=16))#
   }
@@ -356,23 +356,5 @@ stat.ep.testId<-temp.ep.pre[timeCount<600,.(
 ),by=testId]%>%
   merge(x=.,y=info.ep.testId[,c("testId","Kp","Ti")],all.x = TRUE,by = "testId")
 
-
-
-#输出秒级数据
-write.xlsx(data.ep.roomResponse.second,file="SecVer_RoomResponse_20210507.xlsx")
-
-####看一下阀门的开关####
-#sheetName = "阀门开关响应"
-data.ep.valveFlow<-as.data.table(read.csv(file="OriginalData/SecVer_ResponseOnOffTest_20210506.csv"))%>%
-  mutate(.,TestId=as.factor(.$TestId),isOn=(.$from<.$to))%>%as.data.table(.)%>%.[complete.cases(.)]
-
-ggplot(data=data.ep.valveFlow[TestId%in%c("2","3","4","5","6","RTR_2","T2")|(TestId=="T1"&isOn==TRUE)],aes(x=Valveopening,y=Flowrate,color=isOn,lty=TestId))+geom_line()+facet_wrap(~TestId,nrow = 2)+
-  theme_bw()+theme(axis.text=element_text(size=18),axis.title=element_text(size=18,face="bold"),legend.text = element_text(size=16))
-
-
-####室温基本响应####
-# sheetName = "温度响应"
-data.ep.temp<-as.data.table(read.xlsx(file="SecVer_ResponseTest_20210506.xlsx",sheetIndex =  2))
-ggplot(data=data.ep.temp,aes(x=Label,y=Flowrate,color=isOn,lty=TestId))+geom_line()+facet_wrap(~TestId,nrow = 2)
 
 
