@@ -3,7 +3,7 @@
 # 实际情况测试  Real_V2O2R_MV=0.75_BV=0.25_NoLim
 
 includeCol<-c("Time","timeCount","testId","Vset","Valveopening","resistanceS","Flowrate","Totalpressure","Subpressure","totalWaterH","subWaterH","isOn")
-data.ep.statusTest.ideal<-nn[!1:10][,..includeCol]
+data.ep.statusTest.ideal<-data.ep.fluctuationTest[!1:10][,..includeCol]
 data.ep.statusTest.ideal[isOn=="FALSE"]$isOn<-"Stable"
 data.ep.statusTest.ideal$isOn<-as.character(data.ep.statusTest.ideal$isOn)
 data.ep.statusTest.normal<-data.ep.realTest[testId=="Real_V2O2R_MV=0.75_BV=0.25_NoLim",..includeCol]
@@ -154,6 +154,13 @@ data.ep.statusTest.ideal[,c("timeCount","diffthreeValveMva","diffourValveMva","d
 
 
 #数据趋势用可视化
-data.ep.statusTest.normal[,
-    c("testId","timeCount","Flowrate","isOn")]%>%melt(.,id.var=c("testId","timeCount","isOn"))%>%#"Vset",,"sixValveMva"
-ggplot(data=.,aes(x=timeCount,y=value,color=variable,shape=isOn,group=variable))+geom_line()+geom_point()+facet_wrap(.~testId,nrow=3)
+data.ep.realTest[testId=="Real_V2O2R_MV=0.75_BV=0.25_NoLim"][,#][1:100,
+    c("testId","timeCount","Flowrate","Valveopening","flowrateStatus")]%>%melt(.,id.var=c("testId","timeCount","flowrateStatus"))%>%{#,"flowrateStatus","fiveFlowrateMva","flowrateStatus"
+      ggplot(data = .,aes(x=timeCount,y=value,color=variable))+
+        geom_line(data = .[variable=="Flowrate"],aes(x=timeCount,y=value*40))+
+        # geom_point(data = .[variable=="fiveFlowrateMva"],aes(x=timeCount,shape=flowrateStatus,y=value*40))+
+        geom_point(data = .[variable=="Flowrate"],aes(x=timeCount,y=value*40,shape=flowrateStatus))+#,shape=flowrateStatus
+        geom_line(data = .[variable=="Valveopening"],aes(x=timeCount,y=value))
+    }#"Vset",,"sixValveMva"
+#+
+  # geom_line(data = .[variable=="subWaterH"],aes(x=timeCount,y=value*1000))+
