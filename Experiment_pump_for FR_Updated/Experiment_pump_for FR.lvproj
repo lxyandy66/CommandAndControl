@@ -52,6 +52,7 @@
 				<Item Name="Modbus Master.lvclass" Type="LVClass" URL="/&lt;vilib&gt;/Modbus/master/Modbus Master.lvclass"/>
 				<Item Name="NI_PID__prctrl compat.lvlib" Type="Library" URL="/&lt;vilib&gt;/addons/control/pid/NI_PID__prctrl compat.lvlib"/>
 				<Item Name="NI_PID_pid.lvlib" Type="Library" URL="/&lt;vilib&gt;/addons/control/pid/NI_PID_pid.lvlib"/>
+				<Item Name="Normalize End Of Line.vi" Type="VI" URL="/&lt;vilib&gt;/AdvancedString/Normalize End Of Line.vi"/>
 				<Item Name="Not Found Dialog.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Not Found Dialog.vi"/>
 				<Item Name="Search and Replace Pattern.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Search and Replace Pattern.vi"/>
 				<Item Name="Set Bold Text.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Set Bold Text.vi"/>
@@ -63,11 +64,17 @@
 				<Item Name="Three Button Dialog CORE.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Three Button Dialog CORE.vi"/>
 				<Item Name="Three Button Dialog.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Three Button Dialog.vi"/>
 				<Item Name="Trim Whitespace.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Trim Whitespace.vi"/>
+				<Item Name="VISA Configure Serial Port" Type="VI" URL="/&lt;vilib&gt;/Instr/_visa.llb/VISA Configure Serial Port"/>
+				<Item Name="VISA Configure Serial Port (Instr).vi" Type="VI" URL="/&lt;vilib&gt;/Instr/_visa.llb/VISA Configure Serial Port (Instr).vi"/>
+				<Item Name="VISA Configure Serial Port (Serial Instr).vi" Type="VI" URL="/&lt;vilib&gt;/Instr/_visa.llb/VISA Configure Serial Port (Serial Instr).vi"/>
 				<Item Name="whitespace.ctl" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/whitespace.ctl"/>
 			</Item>
 			<Item Name="ControllerPersistor.vi" Type="VI" URL="../ControllerPersistor.vi"/>
 			<Item Name="CtrlCmdCreator.vi" Type="VI" URL="../CtrlCmdCreator.vi"/>
 			<Item Name="database.lvlib" Type="Library" URL="../database/database.lvlib"/>
+			<Item Name="Serial - ASCII Characters.ctl" Type="VI" URL="../SerialSupport/Serial - ASCII Characters.ctl"/>
+			<Item Name="Serial - Settings.ctl" Type="VI" URL="../SerialSupport/Serial - Settings.ctl"/>
+			<Item Name="Serial - XON-XOFF Characters.ctl" Type="VI" URL="../SerialSupport/Serial - XON-XOFF Characters.ctl"/>
 			<Item Name="TCP Multiple Connections Data.ctl" Type="VI" URL="../controls/TCP Multiple Connections Data.ctl"/>
 			<Item Name="TCP Multiple Connections State.ctl" Type="VI" URL="../controls/TCP Multiple Connections State.ctl"/>
 		</Item>
